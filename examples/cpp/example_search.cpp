@@ -2,9 +2,9 @@
 
 
 int main() {
-    int dim = 16;               // Dimension of the elements
-    int max_elements = 10000;   // Maximum number of elements, should be known beforehand
-    int M = 16;                 // Tightly connected with internal dimensionality of the data
+    int dim = 128;               // Dimension of the elements
+    int max_elements = 100000;   // Maximum number of elements, should be known beforehand
+    int M = 32;                 // Tightly connected with internal dimensionality of the data
                                 // strongly affects the memory consumption
     int ef_construction = 200;  // Controls index search speed/build speed tradeoff
 
@@ -14,7 +14,7 @@ int main() {
 
     // Generate random data
     std::mt19937 rng;
-    rng.seed(47);
+    rng.seed(42);
     std::uniform_real_distribution<> distrib_real;
     float* data = new float[dim * max_elements];
     for (int i = 0; i < dim * max_elements; i++) {
@@ -22,19 +22,30 @@ int main() {
     }
 
     // Add data to index
+    time_t start = clock();
     for (int i = 0; i < max_elements; i++) {
         alg_hnsw->addPoint(data + i * dim, i);
     }
+    time_t end = clock();
+    double add_time = (double) (end - start) / CLOCKS_PER_SEC;
 
     // Query the elements for themselves and measure recall
     float correct = 0;
+    long total_time = 0;
+
     for (int i = 0; i < max_elements; i++) {
+        time_t start = clock();
         std::priority_queue<std::pair<float, hnswlib::labeltype>> result = alg_hnsw->searchKnn(data + i * dim, 1);
         hnswlib::labeltype label = result.top().second;
         if (label == i) correct++;
+        time_t end = clock();
+        total_time += end - start;
     }
     float recall = correct / max_elements;
     std::cout << "Recall: " << recall << "\n";
+    float avg_time = (float)(total_time / max_elements) / CLOCKS_PER_SEC;
+    std::cout << "Add time: " << add_time << std::endl;
+    std::cout << "Avg search time: " << avg_time << std::endl;
 
     // Serialize index
     std::string hnsw_path = "hnsw.bin";

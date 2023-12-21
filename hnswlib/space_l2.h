@@ -19,6 +19,58 @@ L2Sqr(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
     return (res);
 }
 
+#if defined(USE_NEON)
+// L2 distance using NEON
+static float
+L2SqrtSIMD16ExtNEON(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
+    float *pVect1 = (float *) pVect1v;
+    float *pVect2 = (float *) pVect2v;
+
+    size_t qty = *((size_t *) qty_ptr);
+    float PORTABLE_ALIGN32 TmpRes[4];
+    size_t qty16 = qty >> 4;
+
+    const float *pEnd1 = pVect1 + (qty16 << 4);
+
+    float32x4_t diff, v1, v2;
+    float32x4_t sum = vdupq_n_f32(0);
+
+    while (pVect1 < pEnd1) {
+        v1 = vld1q_f32(pVect1);
+        pVect1 += 4;
+        v2 = vld1q_f32(pVect2);
+        pVect2 += 4;
+        diff = vsubq_f32(v1, v2);
+        sum = vmlaq_f32(sum, diff, diff);
+
+        v1 = vld1q_f32(pVect1);
+        pVect1 += 4;
+        v2 = vld1q_f32(pVect2);
+        pVect2 += 4;
+        diff = vsubq_f32(v1, v2);
+        sum = vmlaq_f32(sum, diff, diff);
+
+        v1 = vld1q_f32(pVect1);
+        pVect1 += 4;
+        v2 = vld1q_f32(pVect2);
+        pVect2 += 4;
+        diff = vsubq_f32(v1, v2);
+        sum = vmlaq_f32(sum, diff, diff);
+
+        v1 = vld1q_f32(pVect1);
+        pVect1 += 4;
+        v2 = vld1q_f32(pVect2);
+        pVect2 += 4;
+        diff = vsubq_f32(v1, v2);
+        sum = vmlaq_f32(sum, diff, diff);
+    }
+
+    vst1q_f32(TmpRes, sum);
+    return TmpRes[0] + TmpRes[1] + TmpRes[2] + TmpRes[3];
+}
+
+#endif
+
 #if defined(USE_AVX512)
 
 // Favor using AVX512 if available.
@@ -232,6 +284,9 @@ class L2Space : public SpaceInterface<float> {
             fstdistfunc_ = L2SqrSIMD16ExtResiduals;
         else if (dim > 4)
             fstdistfunc_ = L2SqrSIMD4ExtResiduals;
+#elif defined(USE_NEON)
+        //if (dim % 16 == 0)
+        //    fstdistfunc_ = L2SqrtSIMD16ExtNEON;
 #endif
         dim_ = dim;
         data_size_ = dim * sizeof(float);

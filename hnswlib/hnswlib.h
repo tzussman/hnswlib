@@ -18,6 +18,11 @@
 #endif
 #endif
 #endif
+
+// ARM NEON support
+#ifdef __ARM_NEON
+#define USE_NEON
+#endif
 #endif
 
 #if defined(USE_AVX) || defined(USE_SSE)
@@ -114,6 +119,19 @@ static bool AVX512Capable() {
     }
     return HW_AVX512F && avx512Supported;
 }
+#endif
+
+#if defined(USE_NEON)
+#include <arm_neon.h>
+
+#if defined(__GNUC__)
+#define PORTABLE_ALIGN32 __attribute__((aligned(32)))
+#define PORTABLE_ALIGN64 __attribute__((aligned(64)))
+#else
+#define PORTABLE_ALIGN32 __declspec(align(32))
+#define PORTABLE_ALIGN64 __declspec(align(64))
+#endif
+
 #endif
 
 #include <queue>
